@@ -93,10 +93,15 @@ def deploy_agent(existing_agent_id: Optional[str]):
     print(f"\n--- Starting ADK deployment using service account: {SA_EMAIL} ---")
     
     adk_path = shutil.which("adk")
+    fallback_adk = "/home/amatiukas/projects/monorepo/services/news-platform/agents/sre_agent/venv/bin/adk"
     if not adk_path:
-        print("Error: 'adk' command not found in your environment PATH.")
-        print("Please activate your virtual environment where google-adk is installed.")
-        sys.exit(1)
+        if os.path.exists(fallback_adk):
+            adk_path = fallback_adk
+            print(f"Using fallback adk path: {adk_path}")
+        else:
+            print("Error: 'adk' command not found in your environment PATH or fallback location.")
+            print("Please activate your virtual environment where google-adk is installed.")
+            sys.exit(1)
 
     command = [
         adk_path, "deploy", "agent_engine",

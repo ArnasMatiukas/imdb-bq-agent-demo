@@ -76,9 +76,87 @@ def setup_integration():
     a2a_url = f"https://{region}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{region}/reasoningEngines/{reasoning_engine_id}/a2a"
     provisioned_path = f"projects/{project_id}/locations/{region}/reasoningEngines/{reasoning_engine_id}"
 
+    # 4. Attempt automatic registration in Gemini Enterprise
+    print("\n--- Attempting Programmatic Registration with Gemini Enterprise (Discovery Engine) ---")
+    try:
+        token_res = run_command(["gcloud", "auth", "print-access-token"])
+        token = token_res.stdout.strip()
+        
+        import urllib.request
+        import urllib.error
+        import json
+        
+        # Fetch the list of existing engines
+        url = f"https://global-discoveryengine.googleapis.com/v1alpha/projects/{project_id}/locations/global/collections/default_collection/engines"
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {token}",
+            "X-Goog-User-Project": project_id,
+            "Content-Type": "application/json"
+        }, method="GET")
+        
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            
+        engines = data.get("engines", [])
+        if not engines:
+            print("ℹ️ No active Gemini Enterprise / Discovery Engine apps found in this project.")
+        else:
+            # Look for gemini-enterprise engine first, or fallback to the first generic engine
+            target_engine = None
+            for eng in engines:
+                if "gemini-enterprise" in eng.get("name", ""):
+                    target_engine = eng
+                    break
+            if not target_engine:
+                target_engine = engines[0]
+                
+            engine_name = target_engine.get("name")
+            engine_id = engine_name.split("/")[-1]
+            display_name = target_engine.get("displayName")
+            
+            print(f"🎯 Found active Gemini Enterprise App: '{display_name}' ({engine_id})")
+            
+            # Perform registration under the discovered engine
+            reg_url = f"https://global-discoveryengine.googleapis.com/v1alpha/{engine_name}/assistants/default_assistant/agents"
+            
+            payload = {
+                "displayName": "IMDb Analytics Agent V2",
+                "description": "Specialized Data Analyst for the IMDb public dataset (V2). Analyzes BigQuery datasets for movies, actors, ratings, and reviews.",
+                "adkAgentDefinition": {
+                    "provisionedReasoningEngine": {
+                        "reasoningEngine": f"projects/{project_id}/locations/{region}/reasoningEngines/{reasoning_engine_id}"
+                    }
+                },
+                "sharingConfig": {
+                    "scope": "ALL_USERS"
+                }
+            }
+            
+            reg_req = urllib.request.Request(reg_url, headers={
+                "Authorization": f"Bearer {token}",
+                "X-Goog-User-Project": project_id,
+                "Content-Type": "application/json"
+            }, data=json.dumps(payload).encode("utf-8"), method="POST")
+            
+            try:
+                with urllib.request.urlopen(reg_req) as reg_response:
+                    reg_data = json.loads(reg_response.read().decode("utf-8"))
+                agent_resource_name = reg_data.get("name")
+                print(f"✅ Successfully registered agent programmatically: {agent_resource_name}")
+                print("🎉 The agent is now fully visible and active in your Gemini Enterprise interface!")
+            except urllib.error.HTTPError as he:
+                err_body = he.read().decode("utf-8")
+                if he.code == 409:
+                    print("ℹ️ Agent is already registered in this Gemini Enterprise app.")
+                else:
+                    print(f"⚠️ Registration attempt returned status {he.code}: {err_body}")
+    except Exception as e:
+        print(f"ℹ️ Optional automatic registration was skipped: {e}")
+
     print("\n============================================================")
     print("🎉 Integration Setup Complete!")
     print("============================================================")
+
     
     print("\n👉 Option 1: Native Agent Platform / ADK Integration (Recommended)")
     print("------------------------------------------------------------")
