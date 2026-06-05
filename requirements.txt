@@ -1,0 +1,6 @@
+google-adk==1.33.0
+google-cloud-aiplatform==1.151.0
+google-genai==1.74.0
+mcp==1.27.0
+a2a-sdk==0.3.26
+google-cloud-iamconnectorcredentials==0.1.0
