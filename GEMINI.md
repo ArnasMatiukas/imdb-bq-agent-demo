@@ -16,7 +16,6 @@ The agent is designed as a standalone **`LlmAgent`** using a custom Gemini clien
 
 ### 1. Model Configuration
 - **Model Name**: The agent strictly uses `gemini-3.5-flash`.
-- **Global Endpoint Routing**: To prevent `404 Model Not Found` errors in regional GKE deployments (e.g. `europe-west4`), the agent utilizes a custom subclass `CustomGemini` overriding `api_client` with `location="global"`.
 
 ### 2. Environment Configurations
 The codebase is designed to be completely environment-agnostic. All key parameters are loaded from environment variables:
